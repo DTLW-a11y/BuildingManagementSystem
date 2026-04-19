@@ -66,13 +66,14 @@ body {
   background-color: var(--bg);
   color: var(--text);
   min-height: 100vh;
+  --aside-width: 500px;
 }
 
 /* ======== 启动界面 ======== */
 .startup-background-building-1 {
   position: fixed;
   top: 23%;
-  left: -100px;
+  left: -8%;
   height: 80%;
   background: transparent;
   z-index: 102;
@@ -254,7 +255,7 @@ body {
 }
 
 .header .logo-text {
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 600;
   letter-spacing: 0.5px;
 }
@@ -386,8 +387,8 @@ body {
 }
 
 main.small {
-  width: calc(100% - 500px);
-  margin-right: 500px;
+  width: calc(100% - var(--aside-width));
+  margin-right: var(--aside-width);
 }
 
 .page-title {
@@ -586,6 +587,24 @@ select:focus {
   gap: 4px;
 }
 
+.fullscreen-btn {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  top: 6px;
+  left: 90%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 25%;
+}
+
+.fsbtn-icon {
+  width: 26px;
+  height: 26px;
+  font-weight: 900;
+}
+
 .btn-primary {
   background: var(--primary);
   color: white;
@@ -770,7 +789,7 @@ tbody tr:hover {
 }
 
 aside.show {
-  width: 520px;
+  width: calc(var(--aside-width) + 20px);
 }
 
 aside.hide {
@@ -785,11 +804,10 @@ aside.hide {
   left: 0;
   padding: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   border: none;
-  border-radius: 10px;
-  background: var(--header-bg);
   opacity: 0.94;
 }
 
@@ -802,25 +820,32 @@ aside.hide {
   display: flex;
   align-items: center;
   justify-content: center;
-  position: absolute;
-  width: 25px;
-  height: 25px;
+  position: relative;
+  width: 100%;
+  border-top: 1px solid var(--bg);
+  height: 16%;
   color: white;
-  font-weight: 420;
+  background: var(--header-bg);
 }
 
+#chat-show-hide-btn {
+  font-weight: 600;
+}
+
+
 p.left {
-  top: 160px;
-  transform: scaleY(1.28) rotate(90deg);
+  transform: scaleY(1.5) rotate(90deg);
 }
 
 p.right {
-  transform: scaleY(1.28) rotate(-90deg);
-  top: 85px;
+  transform: scaleY(1.5) rotate(-90deg);
 }
 
 .chat-title {
-  position: absolute;
+  height: 84%;
+  width: 100%;
+  background: var(--header-bg);
+  position: relative;
   overflow: visible;
   display: flex;
   align-items: center;
@@ -829,31 +854,38 @@ p.right {
 }
 
 p.hide {
-  font-size: small;
-  top: 6px;
-  left: 0;
-  height: 80%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 14px;
   width: 100%;
   color: whitesmoke;
-  transition-timing-function: cubic-bezier(0.95, 0.05, 0.795, 0.035);
+  overflow: hidden;
+  border: none;
+  transform-origin: center;
 }
 
 p.show {
-  top: -48px;
-  left: 72px;
-  height: 42px;
-  width: 420px;
-  font-size: 26px;
-  font-weight: 600;
-  color: var(--text);
-  transition-timing-function: cubic-bezier(0.075, 0.82, 0.165, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 80%;
+  font-size: 0;
+  width: 8px;
+  color: whitesmoke;
+  overflow: hidden;
+  border-left: 2px solid white;
+  border-right: 2px solid white;
+  transform-origin: center;
+  cursor: ew-resize;
 }
 
 /* ======== 聊天界面 ======== */
 .chat-back {
   min-width:445px;
   height:94%;
-  padding: 0 5px;
+  padding: 10px 5px 0 5px;
   background: var(--chat-back-color);
   box-shadow: -2px 0 8px var(--chat-back-shadow);
 }
@@ -861,7 +893,6 @@ p.show {
 .chat-layout {
   display: flex;
   gap: 10px;
-  padding-top: 50px;
   height: 94%;
   min-height: 500px;
   flex-direction: column;
@@ -1243,4 +1274,15 @@ body.dark .empty-status-msg.info {
   display: flex;
   align-items: center;
   justify-content: end;
+}
+
+/* ======== 拖拽线 ======== */
+.drag-line {
+  transition: none;
+  bottom: 0;
+  position: fixed;
+  height: 0;
+  z-index: 99;
+  width: 0;
+  border: 1px dotted grey;
 }
