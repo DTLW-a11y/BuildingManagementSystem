@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.pyo
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Distribution
+*.tar.gz
+*.zip
+
+# Node modules (if any)
+node_modules/
+
+# Commit the pre-built Vue dist so users can run without npm
+!frontend-vue/dist/
+!frontend-vue/dist/**
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/

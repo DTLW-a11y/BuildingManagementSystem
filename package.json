@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "day-night-toggle-button": "file:../../Git/Day-night-toggle-button/白天黑夜切换按钮npm包"
+  }
+}

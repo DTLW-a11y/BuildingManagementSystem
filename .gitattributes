@@ -1,0 +1,8 @@
+# Force Unix LF line endings for all shell scripts regardless of OS
+*.sh        text eol=lf
+
+# Python source files
+*.py        text eol=lf
+
+# All other text files: normalise to LF in the repo, leave checkout to git default
+*           text=auto
