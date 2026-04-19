@@ -1,12 +1,8 @@
 <template>
   <div>
 
-    <StartupScreen
-      v-if="showStartup"
-      :activeIndex="selectedIndex"
-      :hasSelected="startupAnimating"
-      @select="handleStartupSelect"
-    />
+    <StartupScreen v-if="showStartup" :activeIndex="selectedIndex" :hasSelected="startupAnimating"
+      @select="handleStartupSelect" />
 
     <div v-show="!showStartup || startupAnimating">
       <header class="header">
@@ -15,11 +11,15 @@
           <span class="logo-text">建筑能源智能管理系统</span>
         </div>
         <nav class="header-nav">
-          <RouterLink to="/dashboard" class="nav-link"><img class="startup-card-logo" src="/image/panel.svg" alt="PanelIcon">首页 | 仪表盘</RouterLink>
-          <RouterLink to="/statistics" class="nav-link"><img class="startup-card-logo" src="/image/data.svg" alt="DataIcon">数据分析</RouterLink>
-          <RouterLink to="/query" class="nav-link"><img class="startup-card-logo" src="/image/define.svg" alt="SearchIcon">多条件查询</RouterLink>
-          <RouterLink to="/data" class="nav-link"><img class="startup-card-logo" src="/image/folder.svg" alt="ManageIcon">数据管理</RouterLink>
-          <div id="nav-marker"></div>
+          <RouterLink to="/dashboard" class="nav-link"><img class="startup-card-logo" src="/image/panel.svg"
+              alt="PanelIcon">概览仪表盘</RouterLink>
+          <RouterLink to="/statistics" class="nav-link"><img class="startup-card-logo" src="/image/data.svg"
+              alt="DataIcon">数据分析</RouterLink>
+          <RouterLink to="/query" class="nav-link"><img class="startup-card-logo" src="/image/define.svg"
+              alt="SearchIcon">多条件查询</RouterLink>
+          <RouterLink to="/data" class="nav-link"><img class="startup-card-logo" src="/image/folder.svg"
+              alt="ManageIcon">数据管理</RouterLink>
+          <div id="nav-marker" v-if="withAside"></div>
         </nav>
         <div style="display:flex;align-items:center;gap:12px;">
           <div class="header-status" style="margin-right: 16px;">
@@ -35,10 +35,15 @@
         </transition>
       </main>
 
-      <aside class="aside hide">
-        <button class="show-chat" @click="showChatAI">
-          <p class="chat-title hide">🤖 智能运维助手 </p>
-          <p class="chat-btn-back left">V</p>
+      <aside v-if="withAside" class="aside hide">
+        <RouterLink class="fullscreen-btn" to="/chat" @click="gotoFullScreen"><img class="fsbtn-icon" src="/image/fullscreen.svg" alt="FullScreen"></RouterLink>
+        <button class="show-chat">
+          <div class="chat-title">
+            <p class="hide" @mousedown="startDrag">🤖 智能运维助手</p>
+          </div>
+          <div class="chat-btn-back" @click="showChatAI">
+            <p id="chat-show-hide-btn" class="left">V</p>
+          </div>
         </button>
         <ChatAI />
       </aside>
@@ -49,6 +54,8 @@
           <span style="color: var(--text-secondary);">{{ healthy ? '系统正常' : '连接失败' }}</span>
         </div>
       </footer>
+
+      <div class="drag-line"></div>
 
       <!-- 空数据导入遮罩：仅在空库且当前路由非数据管理时显示 -->
       <EmptyImport v-if="isEmpty && route.path !== '/data'" @imported="onImported" />
@@ -61,7 +68,7 @@
 </template>
 
 <script setup>
-import { ref, provide, onMounted } from 'vue'
+import { ref, provide, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import EmptyImport from './components/EmptyImport.vue'
 import ChatAI from './views/Chat.vue'
@@ -71,15 +78,17 @@ const healthy = ref(true)
 const loading = ref(false)
 const isDark = ref(false)
 const isEmpty = ref(false)
+const withAside = ref(true)
 const route = useRoute()
 const router = useRouter()
 const showStartup = ref(true)
 const selectedIndex = ref(-1)
 const startupAnimating = ref(false)
-let showAI = false
+let newWidth = 500, dragline
+let showAI = false, isDragging = false
 let sidebar, mainContainer, ChatTitle, BtnArrow
 let navMarker, navItem
-let targetMAIN
+let targetMAIN, body = document.body
 let MAINobserver = new ResizeObserver(e => {
   moveMarker();
 })
@@ -132,7 +141,6 @@ function toggleTheme() {
   } else {
     document.body.classList.remove('dark')
   }
-  localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
 }
 
 function handleStartupSelect(index) {
@@ -140,6 +148,11 @@ function handleStartupSelect(index) {
   showStartup.value = false
   targetMAIN = document.querySelectorAll('nav .nav-link')[index]
   moveMarker()
+}
+
+function gotoFullScreen() {
+  withAside.value = false
+  showChatAI()
 }
 
 function showChatAI() {
@@ -167,19 +180,54 @@ function moveMarker() {
   navMarker.style.left = targetMAIN.offsetLeft + 'px';
 }
 
+function startDrag(e) {
+  if (!showAI) return
+  isDragging = true
+  dragline.style.height = '100vh'
+  dragline.style.border = '1px dotted grey'
+  doDrag(e)
+  document.addEventListener('mousemove', doDrag)
+  document.addEventListener('mouseup', stopDrag)
+}
+
+function doDrag(e) {
+  newWidth = window.innerWidth - e.clientX - 16
+  dragline.style.right = newWidth + 'px'
+}
+
+function stopDrag(e) {
+  if (!isDragging) return
+  isDragging = false
+  if (newWidth < 450) body.style.setProperty('--aside-width', '450px')
+  else if (newWidth > window.innerWidth - 500) body.style.setProperty('--aside-width', window.innerWidth - 500 + 'px')
+  else body.style.setProperty('--aside-width', newWidth + 'px')
+  dragline.style.height = '0'
+  dragline.style.border = 'none'
+  document.removeEventListener('mousemove', doDrag)
+  document.removeEventListener('mouseup', stopDrag)
+}
+
 function Init() {
   sidebar = document.querySelector('.aside')
   mainContainer = document.querySelector('.main')
-  ChatTitle = document.querySelector('.chat-title')
-  BtnArrow = document.querySelector('.chat-btn-back')
-  MAINobserver.observe(document.querySelector('.main'))
+  ChatTitle = document.querySelector('p.hide')
+  BtnArrow = document.querySelector('p.left')
+  MAINobserver.observe(document.querySelector('header'))
   navMarker = document.querySelector('#nav-marker')
   navItem = document.querySelectorAll('.nav-link')
   targetMAIN = document.querySelector('.nav-link')
+  dragline = document.querySelector('.drag-line')
   navItem.forEach(link => {
     link.addEventListener('click', (e) => {
       targetMAIN = e.target;
-      moveMarker();
+      withAside.value = true;
+      nextTick(() => {
+        sidebar = document.querySelector('.aside')
+        navMarker = document.querySelector('#nav-marker')
+        ChatTitle = document.querySelector('p.hide')
+        BtnArrow = document.querySelector('p.left')
+        moveMarker()
+      });
     })
   })
 }

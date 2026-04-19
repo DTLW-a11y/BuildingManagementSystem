@@ -1,5 +1,9 @@
 <template>
   <div class="chat-back">
+    <div class="page-title" style="margin:0 16px 10px 16px; display: flex; justify-content: space-between;">&nbsp;🤖 智能运维助手
+      <!-- <span style="opacity: 0.26; font-size: 12px; position: relative; white-space: nowrap;">云端大模型 由 阿里千问Qwen 提供</span> -->
+    </div>
+
     <div class="chat-layout">
       <!-- 聊天主区域 -->
       <div class="chat-main">
@@ -83,6 +87,39 @@ const suggestions = [
   '深夜用电异常的原因和处理方法',
 ]
 
+const quickQuestionSet = new Set(suggestions)
+
+function isPresetQuestion(question) {
+  return quickQuestionSet.has(question)
+}
+
+function buildRequestBody(question) {
+  const body = { question }
+  if (filter.value.building) body.building_id = filter.value.building
+  if (filter.value.startDate) body.start_time = filter.value.startDate + ' 00:00:00'
+  if (filter.value.endDate) body.end_time = filter.value.endDate + ' 23:59:59'
+  return body
+}
+
+async function backendChatRequest(question) {
+  const body = buildRequestBody(question)
+  return fetch('/api/chat/ask', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(r => r.json())
+}
+
+async function modelApiRequest(question) {
+  const body = buildRequestBody(question)
+  // TODO: 将此处替换为实际模型 API 接入地址
+  return fetch('/api/ai/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(r => r.json())
+}
+
 function mdToHtml(text) {
   if (!text) return ''
   return text
@@ -109,18 +146,16 @@ async function ask(question) {
   await scrollBottom()
 
   try {
-    const body = { question }
-    if (filter.value.building) body.building_id = filter.value.building
-    if (filter.value.startDate) body.start_time = filter.value.startDate + ' 00:00:00'
-    if (filter.value.endDate) body.end_time = filter.value.endDate + ' 23:59:59'
+    let answer
+    if (isPresetQuestion(question)) {
+      const data = await backendChatRequest(question)
+      answer = data.answer || '后端问答接口未返回内容。'
+    } else {
+      const data = await modelApiRequest(question)
+      answer = data.answer || '模型API暂无返回结果，请稍后重试。'
+    }
 
-    const data = await fetch('/api/chat/ask', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }).then(r => r.json())
-
-    messages.value[loadingIdx] = { role: 'bot', html: mdToHtml(data.answer) }
+    messages.value[loadingIdx] = { role: 'bot', html: mdToHtml(answer) }
   } catch (e) {
     messages.value[loadingIdx] = { role: 'bot', html: '❌ 请求失败：' + e.message }
   } finally {
