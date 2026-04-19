@@ -83,39 +83,6 @@ const suggestions = [
   '深夜用电异常的原因和处理方法',
 ]
 
-const quickQuestionSet = new Set(suggestions)
-
-function isPresetQuestion(question) {
-  return quickQuestionSet.has(question)
-}
-
-function buildRequestBody(question) {
-  const body = { question }
-  if (filter.value.building) body.building_id = filter.value.building
-  if (filter.value.startDate) body.start_time = filter.value.startDate + ' 00:00:00'
-  if (filter.value.endDate) body.end_time = filter.value.endDate + ' 23:59:59'
-  return body
-}
-
-async function backendChatRequest(question) {
-  const body = buildRequestBody(question)
-  return fetch('/api/chat/ask', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  }).then(r => r.json())
-}
-
-async function modelApiRequest(question) {
-  const body = buildRequestBody(question)
-  // TODO: 将此处替换为实际模型 API 接入地址
-  return fetch('/api/ai/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  }).then(r => r.json())
-}
-
 function mdToHtml(text) {
   if (!text) return ''
   return text
@@ -142,16 +109,18 @@ async function ask(question) {
   await scrollBottom()
 
   try {
-    let answer
-    if (isPresetQuestion(question)) {
-      const data = await backendChatRequest(question)
-      answer = data.answer || '后端问答接口未返回内容。'
-    } else {
-      const data = await modelApiRequest(question)
-      answer = data.answer || '模型API暂无返回结果，请稍后重试。'
-    }
+    const body = { question }
+    if (filter.value.building) body.building_id = filter.value.building
+    if (filter.value.startDate) body.start_time = filter.value.startDate + ' 00:00:00'
+    if (filter.value.endDate) body.end_time = filter.value.endDate + ' 23:59:59'
 
-    messages.value[loadingIdx] = { role: 'bot', html: mdToHtml(answer) }
+    const data = await fetch('/api/chat/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then(r => r.json())
+
+    messages.value[loadingIdx] = { role: 'bot', html: mdToHtml(data.answer) }
   } catch (e) {
     messages.value[loadingIdx] = { role: 'bot', html: '❌ 请求失败：' + e.message }
   } finally {
