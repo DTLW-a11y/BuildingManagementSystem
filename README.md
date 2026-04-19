@@ -33,11 +33,12 @@
 
 ## 6. 技术栈
 
-| 前端        | Vue 3 +  Vite + ECharts                                      |
-| ----------- | ------------------------------------------------------------ |
-| **后端**    | **Python 3.8 + FastAPI + Uvicorn + Pandas + Openpyxl**       |
-| **数据库**  | **SQLite +  SQLAlchemy ORM**                                 |
-| **轻量LLM** | **Ollama + Qwen / LLaMA3 + RAG（知识增强）+ Prompt  Engineering + Hybrid推理** |
+| 技术方向 | 工具                                                         |
+| -------- | ------------------------------------------------------------ |
+| 前端     | Vue 3 +  Vite + ECharts                                      |
+| 后端     | Python 3.8 + FastAPI + Uvicorn + Pandas + Openpyxl           |
+| 数据库   | SQLite +  SQLAlchemy ORM                                     |
+| 轻量LLM  | Ollama + Qwen / LLaMA3 + RAG（知识增强）+ Prompt  Engineering + Hybrid推理 |
 
 ## 7. 项目成果
 
