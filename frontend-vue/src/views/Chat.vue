@@ -1,5 +1,9 @@
 <template>
   <div class="chat-back">
+    <div class="page-title" style="margin:0 16px 10px 16px; display: flex; justify-content: space-between;">&nbsp;🤖 智能运维助手
+      <!-- <span style="opacity: 0.26; font-size: 12px; position: relative; white-space: nowrap;">云端大模型 由 阿里千问Qwen 提供</span> -->
+    </div>
+
     <div class="chat-layout">
       <!-- 聊天主区域 -->
       <div class="chat-main">
@@ -43,19 +47,21 @@
           <button class="btn btn-primary" :disabled="sending" @click="send">
             {{ sending ? '分析中...' : '发送 ▶' }}
           </button>
+          <button @click="showSuggestions = !showSuggestions">
+            {{ showSuggestions ? '▶️ 收起' : '💡 快捷问题' }}
+          </button>
         </div>
-      </div>
 
-      <!-- 快捷问题侧边栏 -->
-      <div class="chat-sidebar">
-        <div class="sidebar-title">💡 快捷问题</div>
-        <div class="suggestions-list">
-          <button
-            v-for="q in suggestions"
-            :key="q"
-            class="suggestion-btn"
-            @click="ask(q)"
-          >{{ q }}</button>
+        <div class="chat-sidebar" :class="{ active: showSuggestions }">
+          <div class="sidebar-title">💡 快捷问题</div>
+          <div class="suggestions-list">
+            <button
+              v-for="q in suggestions"
+              :key="q"
+              class="suggestion-btn"
+              @click="ask(q)"
+            >{{ q }}</button>
+          </div>
         </div>
       </div>
     </div>
@@ -63,7 +69,8 @@
 </template>
 
 <script setup>
-import { ref, nextTick, inject } from 'vue'
+import { ref, nextTick, inject, onMounted, onUnmounted } from 'vue'
+import { AI_CONTEXT_EVENT } from '../utils/aiLink'
 
 const { loading } = inject('api')
 
@@ -72,6 +79,7 @@ const filter = ref({ building: '', startDate: '', endDate: '' })
 const messages = ref([])
 const sending = ref(false)
 const messagesEl = ref(null)
+const showSuggestions = ref(false)
 
 const suggestions = [
   '查询本系统所有建筑的能耗情况',
@@ -89,31 +97,52 @@ function isPresetQuestion(question) {
   return quickQuestionSet.has(question)
 }
 
-function buildRequestBody(question) {
+function buildRequestBody(question, context = null, queryMode = 'ai') {
   const body = { question }
-  if (filter.value.building) body.building_id = filter.value.building
-  if (filter.value.startDate) body.start_time = filter.value.startDate + ' 00:00:00'
-  if (filter.value.endDate) body.end_time = filter.value.endDate + ' 23:59:59'
+  body.query_mode = queryMode
+
+  if (context?.building_id) body.building_id = context.building_id
+  else if (filter.value.building) body.building_id = filter.value.building
+
+  if (context?.start_time) body.start_time = context.start_time
+  else if (filter.value.startDate) body.start_time = filter.value.startDate + ' 00:00:00'
+
+  if (context?.end_time) body.end_time = context.end_time
+  else if (filter.value.endDate) body.end_time = filter.value.endDate + ' 23:59:59'
+
   return body
 }
 
-async function backendChatRequest(question) {
-  const body = buildRequestBody(question)
-  return fetch('/api/chat/ask', {
+async function backendChatRequest(question, context = null, queryMode = 'ai') {
+  const body = buildRequestBody(question, context, queryMode)
+  const response = await fetch('/api/chat/ask', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-  }).then(r => r.json())
+  })
+  return parseApiResponse(response)
 }
 
-async function modelApiRequest(question) {
-  const body = buildRequestBody(question)
-  // TODO: 将此处替换为实际模型 API 接入地址
-  return fetch('/api/ai/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  }).then(r => r.json())
+async function modelApiRequest(question, context = null) {
+  return backendChatRequest(question, context, 'ai')
+}
+
+async function parseApiResponse(response) {
+  const text = await response.text()
+  let data = {}
+
+  try {
+    data = text ? JSON.parse(text) : {}
+  } catch (_) {
+    throw new Error(`服务返回非JSON响应（HTTP ${response.status}）：${text.slice(0, 120)}`)
+  }
+
+  if (!response.ok) {
+    const message = data.detail || data.message || data.error || `HTTP ${response.status}`
+    throw new Error(message)
+  }
+
+  return data
 }
 
 function mdToHtml(text) {
@@ -130,7 +159,13 @@ async function scrollBottom() {
   if (messagesEl.value) messagesEl.value.scrollTop = messagesEl.value.scrollHeight
 }
 
-async function ask(question) {
+async function ask(question, options = {}) {
+  showSuggestions.value = false
+
+  const context = options.context || null
+  const forceBackend = !!options.forceBackend
+  const useRuleMode = isPresetQuestion(question)
+
   if (!question.trim() || sending.value) return
   inputText.value = ''
   sending.value = true
@@ -143,11 +178,14 @@ async function ask(question) {
 
   try {
     let answer
-    if (isPresetQuestion(question)) {
-      const data = await backendChatRequest(question)
+    if (useRuleMode) {
+      const data = await backendChatRequest(question, context, 'rule')
+      answer = data.answer || '后端问答接口未返回内容。'
+    } else if (forceBackend) {
+      const data = await backendChatRequest(question, context, 'ai')
       answer = data.answer || '后端问答接口未返回内容。'
     } else {
-      const data = await modelApiRequest(question)
+      const data = await modelApiRequest(question, context)
       answer = data.answer || '模型API暂无返回结果，请稍后重试。'
     }
 
@@ -164,4 +202,28 @@ async function ask(question) {
 function send() {
   ask(inputText.value.trim())
 }
+
+function toDateInput(v) {
+  if (!v) return ''
+  return String(v).slice(0, 10)
+}
+
+function handleAiContext(event) {
+  const detail = event.detail || {}
+  if (!detail.question) return
+
+  if (detail.building_id) filter.value.building = detail.building_id
+  if (detail.start_time) filter.value.startDate = toDateInput(detail.start_time)
+  if (detail.end_time) filter.value.endDate = toDateInput(detail.end_time)
+
+  ask(detail.question, { context: detail, forceBackend: true })
+}
+
+onMounted(() => {
+  window.addEventListener(AI_CONTEXT_EVENT, handleAiContext)
+})
+
+onUnmounted(() => {
+  window.removeEventListener(AI_CONTEXT_EVENT, handleAiContext)
+})
 </script>

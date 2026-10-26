@@ -49,7 +49,7 @@
     </div>
 
     <div class="btn-row">
-      <button class="btn btn-primary" @click="load">🔄 刷新数据</button>
+      <button class="btn btn-primary" @click="load"><img class="refresh-icon" src="/image/refresh_grey.svg" alt="Refresh">刷新数据</button>
     </div>
 
     <p v-if="error" class="hint" style="color:red;">{{ error }}</p>

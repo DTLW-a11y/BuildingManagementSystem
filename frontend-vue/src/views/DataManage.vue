@@ -22,8 +22,13 @@
     </div>
 
     <div class="card">
-      <div class="card-title">数据集统计信息</div>
-      <button class="btn btn-secondary" @click="loadStats">🔄 刷新统计</button>
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <span>数据集统计信息</span>
+        <div class="btn-row" style="margin-top:0;">
+          <button class="btn btn-secondary" @click="loadStats"><img class="refresh-icon" src="/image/refresh_blue.svg" alt="Refresh">刷新统计</button>
+          <button class="btn" style="background:#f5222d;color:#fff;" @click="openClearConfirm">🗑 清空数据库</button>
+        </div>
+      </div>
       <div class="table-wrapper" style="margin-top:12px;">
         <p v-if="!stats" class="hint">点击刷新统计以加载数据。</p>
         <template v-else-if="stats.total_records === 0">
@@ -53,6 +58,22 @@
         </template>
       </div>
     </div>
+
+    <div v-if="showClearConfirm" class="loading-overlay" @click.self="showClearConfirm = false">
+      <div class="loading-spinner" style="min-width:360px;max-width:520px;text-align:left;">
+        <div style="font-size:18px;font-weight:600;margin-bottom:10px;">⚠️ 确认清空数据库</div>
+        <div style="font-size:14px;line-height:1.8;margin-bottom:12px;">
+          此操作会永久删除当前数据库中的全部记录，且不可恢复。<br>
+          请确认是否继续。
+        </div>
+        <div class="btn-row" style="justify-content:flex-end;margin-top:0;">
+          <button class="btn btn-secondary" :disabled="clearing" @click="showClearConfirm = false">取消</button>
+          <button class="btn" :disabled="clearing" style="background:#f5222d;color:#fff;" @click="confirmClearData">
+            {{ clearing ? '清空中...' : '确认清空' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -66,6 +87,8 @@ const uploadMsg = ref('')
 const uploadMsgType = ref('')
 const stats = ref(null)
 const fileInput = ref(null)
+const showClearConfirm = ref(false)
+const clearing = ref(false)
 
 function onFileChange(e) {
   const file = e.target.files[0]
@@ -103,6 +126,36 @@ async function loadStats() {
     stats.value = await apiFetch('/api/data/stats')
   } catch (e) {
     stats.value = null
+  }
+}
+
+function openClearConfirm() {
+  if (loading.value || clearing.value) return
+  if (stats.value && stats.value.total_records === 0) {
+    uploadMsgType.value = 'info'
+    uploadMsg.value = 'ℹ️ 当前数据库已为空，无需清空。'
+    return
+  }
+  showClearConfirm.value = true
+}
+
+async function confirmClearData() {
+  if (clearing.value) return
+  clearing.value = true
+  loading.value = true
+  try {
+    const data = await apiFetch('/api/data/clear', { method: 'DELETE' })
+    uploadMsgType.value = 'success'
+    uploadMsg.value = `✅ ${data.message}`
+    await loadStats()
+    window.dispatchEvent(new CustomEvent('dataset-updated'))
+  } catch (e) {
+    uploadMsgType.value = 'error'
+    uploadMsg.value = '❌ 清空失败：' + e.message
+  } finally {
+    clearing.value = false
+    loading.value = false
+    showClearConfirm.value = false
   }
 }
 

@@ -80,17 +80,18 @@
       <p v-else-if="records === null" class="hint">请设置查询条件后点击查询按钮。</p>
       <p v-else-if="records.length === 0" class="hint">未找到符合条件的记录。</p>
       <div v-else class="table-wrapper">
+        <p class="hint" style="margin-top:0;">点击任意记录或“联动诊断”按钮，可将当前上下文同步到智能运维助手。</p>
         <table>
           <thead>
             <tr>
               <th>记录编号</th><th>建筑</th><th>监测时间</th>
               <th>电力能耗(kWh)</th><th>水耗(m³)</th>
               <th>空调能耗(kWh)</th><th>COP</th>
-              <th>环境温度(°C)</th><th>设备状态</th>
+              <th>环境温度(°C)</th><th>设备状态</th><th>智能诊断</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="r in records" :key="r.record_id">
+            <tr v-for="r in records" :key="r.record_id" @click="diagnoseRecord(r)" style="cursor:pointer;">
               <td>{{ r.record_id }}</td>
               <td>{{ r.building_name }}</td>
               <td>{{ r.monitor_time ? r.monitor_time.substring(0, 16) : '' }}</td>
@@ -104,6 +105,11 @@
                   {{ r.anomaly_flag ? '异常' : '正常' }}
                 </span>
                 <small v-if="r.anomaly_reason" style="color:#8c8c8c;"> {{ r.anomaly_reason }}</small>
+              </td>
+              <td>
+                <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;" @click.stop="diagnoseRecord(r)">
+                  联动诊断
+                </button>
               </td>
             </tr>
           </tbody>
@@ -126,6 +132,7 @@
 
 <script setup>
 import { ref, computed, inject } from 'vue'
+import { emitAiContext } from '../utils/aiLink'
 
 const { apiFetch, loading } = inject('api')
 
@@ -150,6 +157,57 @@ const pageRange = computed(() => {
   if (end < tp) { if (end < tp - 1) pages.push('...'); pages.push(tp) }
   return pages
 })
+
+function pad2(n) {
+  return String(n).padStart(2, '0')
+}
+
+function formatDateTime(dateObj) {
+  return `${dateObj.getFullYear()}-${pad2(dateObj.getMonth() + 1)}-${pad2(dateObj.getDate())} ${pad2(dateObj.getHours())}:${pad2(dateObj.getMinutes())}:${pad2(dateObj.getSeconds())}`
+}
+
+function normalizeMonitorTime(value) {
+  const raw = String(value || '')
+  if (!raw) return ''
+  const normalized = raw.includes('T') ? raw.replace('T', ' ') : raw
+  return normalized.slice(0, 19)
+}
+
+function buildAroundTimeRange(centerTime) {
+  const normalized = normalizeMonitorTime(centerTime)
+  if (!normalized) return { start_time: '', end_time: '' }
+
+  const date = new Date(normalized.replace(' ', 'T'))
+  if (Number.isNaN(date.getTime())) {
+    return { start_time: normalized, end_time: normalized }
+  }
+
+  const start = new Date(date.getTime() - 60 * 60 * 1000)
+  const end = new Date(date.getTime() + 60 * 60 * 1000)
+  return {
+    start_time: formatDateTime(start),
+    end_time: formatDateTime(end),
+  }
+}
+
+function diagnoseRecord(record) {
+  const time = normalizeMonitorTime(record.monitor_time)
+  const range = buildAroundTimeRange(record.monitor_time)
+  const reasonText = record.anomaly_reason ? `，异常提示：${record.anomaly_reason}` : ''
+  const anomalyText = record.anomaly_flag
+    ? '该记录已被系统标记为异常。'
+    : '该记录未标记异常，请结合指标判断潜在风险。'
+
+  const question = `请对以下能耗异常线索进行诊断：建筑${record.building_name}（${record.building_id}），时间${time}，电力能耗${record.power_consumption}kWh，水耗${record.water_consumption}m³，空调能耗${record.ac_power_consumption}kWh，COP${record.cop}，环境温度${record.env_temperature}℃，设备状态${record.device_status}${reasonText}。${anomalyText}请输出【问题】【原因】【措施】。`
+
+  emitAiContext({
+    source: 'query-record',
+    question,
+    building_id: record.building_id,
+    start_time: range.start_time,
+    end_time: range.end_time,
+  })
+}
 
 function buildParams(pg = 1) {
   const p = new URLSearchParams()

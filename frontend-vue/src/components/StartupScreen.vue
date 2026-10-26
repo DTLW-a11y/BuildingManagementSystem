@@ -5,7 +5,7 @@
       <span class="logo-text">建筑能源智能管理系统</span>
     </div>
     <div class="header-nav">
-      <span class="nav-link" @click="Clicked('/dashboard', 0)"><img class="startup-card-logo" src="/image/panel.svg" alt="PanelIcon">首页 | 仪表盘</span>
+      <span class="nav-link" @click="Clicked('/dashboard', 0)"><img class="startup-card-logo" src="/image/panel.svg" alt="PanelIcon">概览仪表盘</span>
       <span class="nav-link" @click="Clicked('/statistics', 1)"><img class="startup-card-logo" src="/image/data.svg" alt="DataIcon">数据分析</span>
       <span class="nav-link" @click="Clicked('/query', 2)"><img class="startup-card-logo" src="/image/define.svg" alt="SearchIcon">多条件查询</span>
       <span class="nav-link" @click="Clicked('/data', 3)"><img class="startup-card-logo" src="/image/folder.svg" alt="ManageIcon">数据管理</span>
